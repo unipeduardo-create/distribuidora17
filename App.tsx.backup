@@ -1,55 +1,58 @@
-# Workflow para deploy no GitHub Pages
-# Funciona tanto com "GitHub Actions" quanto com "Deploy from branch" (gh-pages)
+import { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './useAuth';
+import { useAdminAuth } from './useAdminAuth';
+import Dashboard from './Dashboard';
+import Login from './Login';
+import AdminLogin from './AdminLogin';
+import AdminRegister from './AdminRegister';
 
-name: Deploy to GitHub Pages
+export default function App() {
+  const { currentUser, login: userLogin, register: userRegister, logout: userLogout } = useAuth();
+  const { currentAdmin, login: adminLogin, register: adminRegister, logout: adminLogout, isLoading } = useAdminAuth();
 
-on:
-  push:
-    branches: ['main']
-  workflow_dispatch:
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-
-concurrency:
-  group: 'pages'
-  cancel-in-progress: true
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: './dist'
-
-      - name: Deploy to GitHub Pages (Actions mode)
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      # Também copia para a branch gh-pages para quem usa "Deploy from branch"
-      - name: Deploy to gh-pages branch
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
-          force_orphan: true
+  return (
+    <Router basename="/distribuidora17">
+      <Routes>
+        {/* Admin routes */}
+        {currentAdmin ? (
+          <>
+            <Route path="/admin" element={<Dashboard />} />
+            <Route path="*" element={<Navigate to="/admin" />} />
+          </>
+        ) : (
+          <>
+            <Route path="/admin/login" element={<AdminLogin onLogin={adminLogin} />} />
+            <Route path="/admin/cadastro" element={<AdminRegister onRegister={adminRegister} />} />
+            <Route path="/admin/*" element={<Navigate to="/admin/login" />} />
+            
+            {/* User routes */}
+            {currentUser ? (
+              <>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="*" element={<Navigate to="/" />} />
+              </>
+            ) : (
+              <>
+                <Route path="/login" element={<Login />} />
+                <Route path="/" element={<Navigate to="/login" />} />
+                <Route path="*" element={<Navigate to="/login" />} />
+              </>
+            )}
+          </>
+        )}
+      </Routes>
+    </Router>
+  );
+}
