@@ -1,0 +1,284 @@
+import { useState, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ShieldCheck, Eye, EyeOff, Mail, Lock, User, Check, X } from 'lucide-react';
+
+interface AdminRegisterProps {
+  onRegister: (name: string, email: string, password: string) => { success: boolean; message: string };
+}
+
+export default function AdminRegister({ onRegister }: AdminRegisterProps) {
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [globalError, setGlobalError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const requirements = useMemo(
+    () => [
+      { label: 'Pelo menos 6 caracteres', met: password.length >= 6 },
+      { label: 'Uma letra maiúscula', met: /[A-Z]/.test(password) },
+      { label: 'Um número', met: /[0-9]/.test(password) },
+    ],
+    [password]
+  );
+
+  const strength = useMemo(() => {
+    if (password.length === 0) return { level: 0, label: '', color: '' };
+    const metCount = requirements.filter((r) => r.met).length;
+    if (metCount <= 1) return { level: 1, label: 'Fraca', color: 'bg-red-500' };
+    if (metCount === 2) return { level: 2, label: 'Média', color: 'bg-yellow-500' };
+    return { level: 3, label: 'Forte', color: 'bg-emerald-500' };
+  }, [password, requirements]);
+
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const allRequirementsMet = requirements.every((r) => r.met);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setGlobalError('');
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
+
+    const errors: Record<string, string> = {};
+    if (!name.trim()) errors.name = 'Informe seu nome completo.';
+    if (!email.trim()) errors.email = 'Informe o e-mail.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'E-mail inválido.';
+    if (!allRequirementsMet) errors.password = 'A senha não atende aos requisitos.';
+    if (password !== confirmPassword) errors.confirmPassword = 'As senhas não coincidem.';
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setIsSubmitting(true);
+    setTimeout(() => {
+      const result = onRegister(name, email, password);
+      if (result.success) {
+        navigate('/admin');
+      } else {
+        setGlobalError(result.message);
+      }
+      setIsSubmitting(false);
+    }, 400);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-slate-50 to-blue-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+          <div className="px-8 pt-8 pb-6 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-200"
+            >
+              <ShieldCheck className="w-8 h-8 text-white" />
+            </motion.div>
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-medium mb-3">
+              <ShieldCheck className="w-3 h-3" />
+              Área Administrativa
+            </div>
+            <h1 className="text-2xl font-bold text-slate-800">Cadastro de Administrador</h1>
+            <p className="text-slate-500 mt-1 text-sm">Crie uma conta de administrador para gerenciar o sistema</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5" noValidate>
+            <AnimatePresence>
+              {globalError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg overflow-hidden"
+                >
+                  {globalError}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Nome completo</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, name: true }))}
+                  className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${
+                    touched.name && fieldErrors.name ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                  placeholder="Nome do administrador"
+                />
+              </div>
+              {touched.name && fieldErrors.name && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">E-mail</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, email: true }))}
+                  className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${
+                    touched.email && fieldErrors.email ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                  placeholder="admin@email.com"
+                />
+              </div>
+              {touched.email && fieldErrors.email && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+                  className={`w-full pl-10 pr-11 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${
+                    touched.password && fieldErrors.password ? 'border-red-300' : 'border-slate-200'
+                  }`}
+                  placeholder="Crie uma senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {password.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="mt-2 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex gap-1">
+                      {[1, 2, 3].map((level) => (
+                        <div
+                          key={level}
+                          className={`h-1 flex-1 rounded-full transition-colors ${
+                            strength.level >= level ? strength.color : 'bg-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span
+                      className={`text-xs font-medium ${
+                        strength.level === 1
+                          ? 'text-red-600'
+                          : strength.level === 2
+                          ? 'text-yellow-600'
+                          : 'text-emerald-600'
+                      }`}
+                    >
+                      {strength.label}
+                    </span>
+                  </div>
+                  <ul className="space-y-1">
+                    {requirements.map((req) => (
+                      <li
+                        key={req.label}
+                        className={`flex items-center gap-2 text-xs ${
+                          req.met ? 'text-emerald-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {req.met ? <Check className="w-3.5 h-3.5" /> : <X className="w-3.5 h-3.5" />}
+                        {req.label}
+                      </li>
+                    ))}
+                  </ul>
+                </motion.div>
+              )}
+              {touched.password && fieldErrors.password && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.password}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirmar senha</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onBlur={() => setTouched((t) => ({ ...t, confirmPassword: true }))}
+                  className={`w-full pl-10 pr-11 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all ${
+                    touched.confirmPassword && fieldErrors.confirmPassword
+                      ? 'border-red-300'
+                      : passwordsMatch
+                      ? 'border-emerald-300'
+                      : 'border-slate-200'
+                  }`}
+                  placeholder="Repita a senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {touched.confirmPassword && fieldErrors.confirmPassword && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors.confirmPassword}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+              {isSubmitting ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                />
+              ) : (
+                'Cadastrar como Administrador'
+              )}
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              Já tem conta?{' '}
+              <Link to="/admin/login" className="text-indigo-600 hover:text-indigo-700 font-medium">
+                Fazer login
+              </Link>
+            </p>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+}

@@ -1,0 +1,443 @@
+import { useState, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Package, Eye, EyeOff, Mail, Lock, User, Check, X, ShieldCheck } from 'lucide-react';
+
+interface RegisterProps {
+  onRegister: (name: string, email: string, password: string) => { success: boolean; message: string };
+}
+
+interface Requirement {
+  label: string;
+  met: boolean;
+}
+
+export default function Register({ onRegister }: RegisterProps) {
+  const navigate = useNavigate();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [globalError, setGlobalError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const requirements: Requirement[] = useMemo(
+    () => [
+      { label: 'Pelo menos 6 caracteres', met: password.length >= 6 },
+      { label: 'Uma letra maiúscula', met: /[A-Z]/.test(password) },
+      { label: 'Um número', met: /[0-9]/.test(password) },
+    ],
+    [password]
+  );
+
+  const strength = useMemo(() => {
+    if (password.length === 0) return { level: 0, label: '', color: '' };
+    const metCount = requirements.filter((r) => r.met).length;
+    if (metCount === 0) return { level: 1, label: 'Fraca', color: 'bg-red-500' };
+    if (metCount === 1) return { level: 1, label: 'Fraca', color: 'bg-red-500' };
+    if (metCount === 2) return { level: 2, label: 'Média', color: 'bg-yellow-500' };
+    return { level: 3, label: 'Forte', color: 'bg-emerald-500' };
+  }, [password, requirements]);
+
+  const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
+  const allRequirementsMet = requirements.every((r) => r.met);
+
+  const validateField = (field: string, value: string) => {
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      if (field === 'name' && !value.trim()) next.name = 'Informe seu nome completo.';
+      if (field === 'email') {
+        if (!value.trim()) next.email = 'Informe o e-mail.';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) next.email = 'E-mail inválido.';
+      }
+      return next;
+    });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setGlobalError('');
+    setTouched({ name: true, email: true, password: true, confirmPassword: true });
+
+    const errors: Record<string, string> = {};
+    if (!name.trim()) errors.name = 'Informe seu nome completo.';
+    if (!email.trim()) errors.email = 'Informe o e-mail.';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'E-mail inválido.';
+    if (!allRequirementsMet) errors.password = 'A senha não atende aos requisitos acima.';
+    if (password !== confirmPassword) errors.confirmPassword = 'As senhas não coincidem.';
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+
+    setIsSubmitting(true);
+    setTimeout(() => {
+      const result = onRegister(name, email, password);
+      if (result.success) {
+        navigate('/');
+      } else {
+        setGlobalError(result.message);
+      }
+      setIsSubmitting(false);
+    }, 400);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-slate-50 to-teal-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+          <div className="px-8 pt-8 pb-6 text-center">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+              className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-200"
+            >
+              <Package className="w-8 h-8 text-white" />
+            </motion.div>
+            <h1 className="text-2xl font-bold text-slate-800">Criar conta</h1>
+            <p className="text-slate-500 mt-1 text-sm">Cadastre-se para começar a gerenciar distribuidoras</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="px-8 pb-8 space-y-5" noValidate>
+            <AnimatePresence>
+              {globalError && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3 rounded-lg overflow-hidden"
+                >
+                  {globalError}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Nome */}
+            <div>
+              <label htmlFor="reg-name" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Nome completo
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  id="reg-name"
+                  name="name"
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onBlur={() => {
+                    setTouched((t) => ({ ...t, name: true }));
+                    validateField('name', name);
+                  }}
+                  className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
+                    touched.name && fieldErrors.name
+                      ? 'border-red-300 bg-red-50/30'
+                      : 'border-slate-200 focus:bg-white'
+                  }`}
+                  placeholder="Ex: João da Silva"
+                />
+              </div>
+              <AnimatePresence>
+                {touched.name && fieldErrors.name && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-red-500 mt-1"
+                  >
+                    {fieldErrors.name}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* E-mail */}
+            <div>
+              <label htmlFor="reg-email" className="block text-sm font-medium text-slate-700 mb-1.5">
+                E-mail
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  id="reg-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => {
+                    setTouched((t) => ({ ...t, email: true }));
+                    validateField('email', email);
+                  }}
+                  className={`w-full pl-10 pr-4 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
+                    touched.email && fieldErrors.email
+                      ? 'border-red-300 bg-red-50/30'
+                      : 'border-slate-200 focus:bg-white'
+                  }`}
+                  placeholder="seu@email.com"
+                />
+              </div>
+              <AnimatePresence>
+                {touched.email && fieldErrors.email && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-red-500 mt-1"
+                  >
+                    {fieldErrors.email}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Senha */}
+            <div>
+              <label htmlFor="reg-password" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Senha
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  id="reg-password"
+                  name="new-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    setPassword(newValue);
+                    if (touched.password) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        if (newValue.length === 0) {
+                          next.password = 'A senha é obrigatória.';
+                        } else {
+                          delete next.password;
+                        }
+                        return next;
+                      });
+                    }
+                  }}
+                  onBlur={() => {
+                    setTouched((t) => ({ ...t, password: true }));
+                    if (password.length === 0) {
+                      setFieldErrors((prev) => ({ ...prev, password: 'A senha é obrigatória.' }));
+                    } else if (!allRequirementsMet) {
+                      setFieldErrors((prev) => ({
+                        ...prev,
+                        password: 'A senha não atende aos requisitos acima.',
+                      }));
+                    } else {
+                      setFieldErrors((prev) => {
+                        const { password: _p, ...rest } = prev;
+                        return rest;
+                      });
+                    }
+                  }}
+                  className={`w-full pl-10 pr-11 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
+                    touched.password && fieldErrors.password
+                      ? 'border-red-300 bg-red-50/30'
+                      : 'border-slate-200 focus:bg-white'
+                  }`}
+                  placeholder="Crie uma senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+
+              {/* Indicador de força */}
+              {password.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mt-2 space-y-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex gap-1">
+                      {[1, 2, 3].map((level) => (
+                        <div
+                          key={level}
+                          className={`h-1 flex-1 rounded-full transition-colors ${
+                            strength.level >= level ? strength.color : 'bg-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className={`text-xs font-medium ${
+                      strength.level === 1 ? 'text-red-600' :
+                      strength.level === 2 ? 'text-yellow-600' : 'text-emerald-600'
+                    }`}>
+                      {strength.label}
+                    </span>
+                  </div>
+
+                  <ul className="space-y-1">
+                    {requirements.map((req) => (
+                      <li
+                        key={req.label}
+                        className={`flex items-center gap-2 text-xs transition-colors ${
+                          req.met ? 'text-emerald-600' : 'text-slate-400'
+                        }`}
+                      >
+                        {req.met ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                        {req.label}
+                      </li>
+                    ))}
+                    {confirmPassword.length > 0 && (
+                      <li
+                        className={`flex items-center gap-2 text-xs transition-colors ${
+                          passwordsMatch ? 'text-emerald-600' : 'text-red-500'
+                        }`}
+                      >
+                        {passwordsMatch ? (
+                          <Check className="w-3.5 h-3.5" />
+                        ) : (
+                          <X className="w-3.5 h-3.5" />
+                        )}
+                        Senhas coincidem
+                      </li>
+                    )}
+                  </ul>
+                </motion.div>
+              )}
+
+              <AnimatePresence>
+                {touched.password && fieldErrors.password && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-red-500 mt-1"
+                  >
+                    {fieldErrors.password}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* Confirmar senha */}
+            <div>
+              <label htmlFor="reg-confirm" className="block text-sm font-medium text-slate-700 mb-1.5">
+                Confirmar senha
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                <input
+                  id="reg-confirm"
+                  name="confirm-password"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    if (touched.confirmPassword) {
+                      setFieldErrors((prev) => {
+                        const next = { ...prev };
+                        if (e.target.value === password) delete next.confirmPassword;
+                        else next.confirmPassword = 'As senhas não coincidem.';
+                        return next;
+                      });
+                    }
+                  }}
+                  onBlur={() => {
+                    setTouched((t) => ({ ...t, confirmPassword: true }));
+                    if (confirmPassword && confirmPassword !== password) {
+                      setFieldErrors((prev) => ({ ...prev, confirmPassword: 'As senhas não coincidem.' }));
+                    } else if (!confirmPassword) {
+                      setFieldErrors((prev) => ({ ...prev, confirmPassword: 'Confirme sua senha.' }));
+                    } else {
+                      setFieldErrors((prev) => {
+                        const { confirmPassword: _c, ...rest } = prev;
+                        return rest;
+                      });
+                    }
+                  }}
+                  className={`w-full pl-10 pr-11 py-2.5 bg-slate-50 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all ${
+                    touched.confirmPassword && fieldErrors.confirmPassword
+                      ? 'border-red-300 bg-red-50/30'
+                      : passwordsMatch
+                      ? 'border-emerald-300 bg-emerald-50/30'
+                      : 'border-slate-200 focus:bg-white'
+                  }`}
+                  placeholder="Repita a senha"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  aria-label={showConfirmPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <AnimatePresence>
+                {touched.confirmPassword && fieldErrors.confirmPassword && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="text-xs text-red-500 mt-1"
+                  >
+                    {fieldErrors.confirmPassword}
+                  </motion.p>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="flex items-start gap-2 pt-1">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-slate-500">
+                Seus dados são salvos localmente no navegador. Crie uma senha forte para proteger sua conta.
+              </p>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-medium rounded-lg transition-colors flex items-center justify-center gap-2 shadow-sm"
+            >
+              {isSubmitting ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                />
+              ) : (
+                'Cadastrar'
+              )}
+            </button>
+
+            <p className="text-center text-sm text-slate-500">
+              Já tem uma conta?{' '}
+              <Link to="/login" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                Faça login
+              </Link>
+            </p>
+          </form>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
