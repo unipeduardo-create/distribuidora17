@@ -1,32 +1,15 @@
-# Dependencies
-node_modules/
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-# Build output (gerado pelo CI/CD do GitHub Actions)
-# Se você precisa commitar o build manualmente, remova a linha abaixo
-# dist/
-build/
-
-# Logs
-*.log
-npm-debug.log*
-
-# Editor directories and files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Environment files
-.env
-.env.local
-.env.*.local
-
-# Testing
-coverage/
-.nyc_output/
-
-# Misc
-.cache/
-.temp/
+export default defineConfig({
+  plugins: [react()],
+  base: '/distribuidora17/',
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'terser',
+  },
+  server: {
+    port: 5173,
+  },
+});
